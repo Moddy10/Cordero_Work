@@ -1,0 +1,683 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(stringr)
+library(tibble)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(tm)
+library(stm)
+library(wordcloud)
+library(psych)
+library(mirt)
+library(nFactors)
+library(psych)
+library(prediction)
+library(vars)
+library(corrplot)
+library(lavaan)
+library(lme4)
+library(lmerTest)
+```
+
+
+
+```{r}
+
+#setwd("/Users/raoul.fernandes/Downloads/Behavioral DS/Final Project")
+# Read in file
+SFO_data <-read.delim("SFO_survey_withText.txt", sep = "\t", skipNul = TRUE, quote = "\"", dec = ".", fill = TRUE, comment.char = "",  na.strings="?",strip.white=TRUE,stringsAsFactors = default.stringsAsFactors()) %>% tibble()
+
+SFO_data2 <-  subset(SFO_data, select = -c(Q3_5, Q3_6, Q8COM3, Q9ANEG3, Q9ANTR3, Q13_COM, Q14A, Location.1))
+
+head(SFO_data2)
+
+```
+FINAL PROJECT PART 1 (submitted 10/23/21)
+
+
+```{r}
+describe(SFO_data2)
+```
+
+```{r}
+# check if any colums contain no data or all NAs
+  #unique(SFO_data2$Q3_5)
+  #unique(SFO_data2$Q3_6)
+  #unique(SFO_data2$Q8COM3)
+  #unique(SFO_data2$Q9ANEG3)
+  #unique(SFO_data2$Q9ANTR3)
+  #unique(SFO_data2$Q13_COM)
+  #unique(SFO_data2$Q14A)
+  #unique(SFO_data2$Q6)
+  #unique(SFO_data2$Location.1)
+
+SFO_data3 <- SFO_data
+
+# drop columns with all NAs
+SFO_data3 <-  subset(SFO_data, select = -c(Q3_5, Q3_6, Q8COM3, Q9ANEG3, Q9ANTR3, Q13_COM, Q14A, Location.1))
+head(SFO_data3)
+
+```
+
+
+```{r}
+# Recoding and Creating Variables
+colnames(SFO_data3)[colnames(SFO_data3) == "ATYPE"] <- "Airline_Size"
+colnames(SFO_data3)[colnames(SFO_data3) == "INTDATE"] <- "SurveyDt"
+colnames(SFO_data3)[colnames(SFO_data3) == "DESTMARK"] <- "DestMktSize"
+colnames(SFO_data3)[colnames(SFO_data3) == "TERM"] <- "TerminalNbr"
+colnames(SFO_data3)[colnames(SFO_data3) == "GATENUM"] <- "GateNbr"
+colnames(SFO_data3)[colnames(SFO_data3) == "DESTGEO"] <- "GeoCode"
+colnames(SFO_data3)[colnames(SFO_data3) == "DEST"] <- "FlightDest"
+colnames(SFO_data3)[colnames(SFO_data3) == "INC"] <- "Income"
+#colnames(SFO_data3)[colnames(SFO_data3) == "Q7_text_All"] <- "Q7_Comments"
+colnames(SFO_data3)[colnames(SFO_data3) == "STRATA"] <- "DepartTimePd"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q1"] <- "Connection?"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q2_1"] <- "Trip_Purpose"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q3A"] <- "Parking"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q4A"] <- "Baggage_Chk"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q4B"] <- "Store_Purchase"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q4C"] <- "Dining_Purchase"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q5AVG"] <- "AvgVisits"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6A"] <- "ArtExhibit_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6B"] <- "Restaurant_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6C"] <- "Shops_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6D"] <- "Signs_Inside_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6E"] <- "Escalators_Elevators_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6G"] <- "InfoBooth_Lower_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6I"] <- "Signs_Outside_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6J"] <- "Parking_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6K"] <- "Gen_AirTrain_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6L"] <- "LTShuttle_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q6M"] <- "RentalCar_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q8B"] <- "CleanParkGrg_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q8C"] <- "CleanAirTrain_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q8E"] <- "CleanDining_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q9"] <- "Safety"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q10"] <- "SFO_WebUser"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q11"] <- "SFO_Website_Rtg"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q13A"] <- "Ease_of_Finding_Way"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q13B"] <- "SecurityEase"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q14"] <- "Prob_Encounter"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q14A1"] <- "ProbType_Staff"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q15"] <- "Local?"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q18"] <- "Gender"
+colnames(SFO_data3)[colnames(SFO_data3) == "Q19"] <- "Income_Lvl"
+```
+
+
+
+```{r}
+summary(SFO_data3)
+```
+
+```{r}
+#source of function: https://towardsdatascience.com/how-to-create-a-correlation-matrix-with-too-many-variables-309cc0c0a57
+
+corr_simple <- function(data=SFO_data3,sig=0.5){
+  #convert data to numeric in order to run correlations
+  #convert to factor first to keep the integrity of the data - each value will become a number rather than turn into NA
+  df_cor <- SFO_data3 %>% mutate_if(is.character, as.factor)
+  df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)
+  #run a correlation and drop the insignificant ones
+  corr <- cor(df_cor)
+  #prepare to drop duplicates and correlations of 1     
+  corr[lower.tri(corr,diag=TRUE)] <- NA 
+  #drop perfect correlations
+  corr[corr == 1] <- NA 
+  #turn into a 3-column table
+  corr <- as.data.frame(as.table(corr))
+
+  corr <- na.omit(corr) 
+  #select significant values  
+  corr <- subset(corr, abs(Freq) > sig) 
+  #sort by highest correlation
+  corr <- corr[order(-abs(corr$Freq)),] 
+ 
+  print(corr)
+ 
+  mtx_corr <- reshape2::acast(corr, Var1~Var2, value.var="Freq")
+  
+  #plot 
+  corrplot(mtx_corr, is.corr=FALSE, tl.col="black", na.label=" ")
+}
+corr_simple()
+```
+Using the correlation plot above, we see a positive correlation between a few variables: 1. Cleanliness of a Restaurant - Overall Restaurant Rating 2. Cleanliness of Parking Garage - Overall Parking Garage Rating 3. Cleanliness of AirTrain - Overall AirTrain Rating 4. Cleanliness of Rental Car Garage - Overall Rental Car Rating
+
+
+
+```{r}
+# Create and Sort Income Groups
+SFO_data3$Income <- factor(SFO_data3$Income, levels = c('25,000',
+                                                        '75,000',
+                                                        '125,000',
+                                                        '175,000'))
+```
+
+
+```{r}
+#Polling SFO passengers regarding use of the SFO Airport website:
+
+SFO_data3%>% 
+  mutate(SFO_WebUser= recode(SFO_WebUser,
+                          `1` = 'Yes',
+                          `2` = 'No',
+                          `3` = 'Unsure',
+                          `NA` = 'Not Answered')) %>%
+  filter(SFO_WebUser !='Not Answered') %>%
+  ggplot(aes(x = SFO_WebUser, fill = SFO_WebUser)) + ggtitle("Poll: Have You Ever Used the SFO Website?")+
+  geom_bar() 
+
+```
+Using the results from the above plot, we see that most people do not tend to use the SFO website prior to their visit to the airport. While this is not surprising, we could eventually perform analysis to see if people who review the website prior to their visit tend to have a more positive experience at the SFO airport.
+
+```{r}
+#How would you rate the usefulness of the SFO website?
+  
+SFO_data3%>% 
+  mutate(SFO_Website_Rtg= recode(SFO_Website_Rtg,
+                          `1` = 'Not Useful',
+                          `2` = '',
+                          `3` = 'Neutral',
+                          '4' = '',
+                          '5' = 'Extremely Useful',
+                          `NA` = 'Not Answered')) %>%
+  filter(SFO_Website_Rtg !='Not Answered',
+         SFO_Website_Rtg !='') %>%
+  ggplot(aes(x = SFO_Website_Rtg, fill = SFO_Website_Rtg)) + ggtitle("Poll: Is the SFO Website Useful?")+
+  geom_bar() 
+         
+```
+Owing to our previous question, we do see that people who viewed the website prior to visiting the aiport, found it extremely useful. As such the website should be promoted to a greater extent to ensure more people review it prior to visiting the airport.
+
+
+
+```{r}
+# Below are the variables which have 5% or more of missing data
+
+# 20% missing data for Income Level
+table(SFO_data3$Income_Lvl, exclude=NULL)
+print(651/length(SFO_data3$Income_Lvl))
+
+```
+
+
+
+```{r}
+# 5% missing data for Gender
+table(SFO_data3$Gender, exclude=NULL)
+print(186/length(SFO_data3$Gender))
+
+```
+
+```{r}
+SFO_data3 %>% mutate(Trip_Purpose = recode(Trip_Purpose,
+                          `1` = 'Business',
+                          `2` = 'Pleasure/Vacation',
+                          `3` = 'Visit Friends/Relatives',
+                          '4' = 'School',
+                          '5' = 'Business',
+                          '6' = 'Wedding/Funeral',
+                          '8' =  'Other')) %>% 
+filter(Trip_Purpose !='',
+  Trip_Purpose !='',
+  Dining_Purchase != 'NA') %>%
+  ggplot(aes(x = Trip_Purpose, fill = Trip_Purpose)) + ggtitle("Visitor Type")+
+  geom_bar() 
+```
+Most of the visitors to SFO are people on vacation, followed by people on business and those those visitng friends and family.
+
+
+
+```{r}
+library(ggplot2)
+
+#Number of visits to SFO by Income Group
+SFO_data3 %>% 
+  filter(Income != '5',
+         Income != '') %>%
+ggplot(aes(x = factor(Income_Lvl), y = as.double(AGE))) + geom_boxplot() + ggtitle("Number of visits to SFO by Income Group") + xlab("Income Group") + ylab("Number of visits at SFO") 
+```
+
+
+
+```{r}
+
+#Visiting Age Group at Terminals
+SFO_data3%>% mutate(AGE = recode(AGE,
+                          `15` = '15',
+                          `21` = '21-29',
+                          `29.5` = '30',
+                          `39.5` = '40',
+                          `49.5` = '50',
+                          `59.5` = '60',
+                          `75` = '75',
+                          `8` = '8',
+                          'NA' = '0')) %>% 
+  filter(AGE != '8',
+         AGE != '0',
+         Income != 'NA') %>% 
+  ggplot(aes(x = AGE, fill = AGE)) + ggtitle("Age Group at Terminals")+
+  geom_bar() +
+  facet_wrap(TerminalNbr~.)
+
+```
+While there is not much difference between terminals and age group; we clearly see one anomaly that terminal 2 witnesses a large number of people in their 30s. This may primarily be attributed to the fact that Terminal 2 of SFO is the international terminal.
+
+
+```{r}
+
+SFO_data3 %>% 
+    group_by(TerminalNbr, Income) %>% 
+    summarise(n = n()) %>% ungroup() %>% group_by(TerminalNbr) %>% 
+    mutate(pct = round(n/sum(n),2)) %>% 
+    arrange((desc(pct)))  
+
+```
+
+
+```{r}
+# Terminal Visits by Income Group
+SFO_data3 %>% 
+  filter(Income != '5',
+         Income != '') %>% 
+  ggplot(aes(x = Income, fill = Income)) + ggtitle("Terminal Population by Income Group")+
+  geom_bar() +
+  facet_wrap(TerminalNbr~.)
+```
+As more younger people tend to travel through Terminal 2, we see more people having lesser incomes. Additionally, if Terminal 2 is the international terminal, we can have people from other countries where the dollar is much highly valued.
+
+
+```{r}
+# Passengers Making Concession Stand Purchases by Terminal
+SFO_data3%>% mutate(Store_Purchase = recode(Store_Purchase,
+                          '1' = 'Yes',
+                          '2' = 'No',
+                          '3' = 'Unsure',
+                          'NA' = 'NA')) %>% 
+  mutate(Income_Lvl = recode(Income_Lvl,
+                          `1` = 'Under $50k',
+                          `2` = '$50k-$100k',
+                          `3` = '$101k-$150k',
+                          '4' = 'Over $150k',
+                          '5' = 'Unspecified',
+                          '0' = 'Blank')) %>% 
+  filter(Store_Purchase != 'NA',
+  Store_Purchase != 'Unsure',
+  Income_Lvl != '',
+  Income_Lvl !='Unspecified',
+  Income_Lvl !='Blank',
+  Income_Lvl !='NA') %>% 
+  ggplot(aes(x = Store_Purchase, fill = Store_Purchase)) + ggtitle("Store Purchases by Income Level")+
+  geom_bar() +
+  facet_wrap(Income_Lvl~.) 
+```
+
+Visually inspecting the various income groups, we do not see substantial differences in store purchases done by either of the groups.
+
+
+
+```{r}
+SFO_data3%>% mutate(Store_Purchase= recode(Store_Purchase,
+                          `1` = 'Yes',
+                          `2` = 'No',
+                          `3` = 'Unsure',
+                          'NA' = 'NA')) %>% 
+  filter(Store_Purchase !='',
+  Store_Purchase != 'NA',
+  Store_Purchase != '3',
+  Gender != '',
+  Gender !='NA') %>% 
+  ggplot(aes(x = Store_Purchase, fill = Store_Purchase)) + ggtitle("Store Purchases by Gate Number")+
+  geom_bar() +
+  facet_wrap(GateNbr~.)
+```
+
+While we see some correlation between gate numbers and store purchases, we cannot be definite in our conclusion that passengers flying through a particular gate tend to shop more at the stores.
+
+
+```{r}
+SFO_data3%>% mutate(DepartTimePd = recode(DepartTimePd,
+                          `1` = 'Before 11am',
+                          `2` = '11am-5pm',
+                          `3` = 'After 5pm',
+                          '0' = 'NA')) %>% 
+  mutate(Dining_Purchase = recode(Dining_Purchase,
+                          `1` = 'Yes',
+                          `2` = 'No',
+                          `3` = 'Unsure',
+                          'NA' = 'NA')) %>%
+  filter(DepartTimePd !='',
+  DepartTimePd != 'NA',
+  Dining_Purchase !='NA',
+  Dining_Purchase !='Unsure') %>% 
+  ggplot(aes(x = Dining_Purchase, fill = Dining_Purchase)) + ggtitle("Dining - Time of Day")+
+  geom_bar() +
+  facet_wrap(DepartTimePd~.)
+```
+As the traffic during 11AM - 5PM is the greatest we see that large number of visitors tend to purchase food at the airport during that time of the day. Additionally, We see the people also tend to purchase food items before 11AM.
+
+
+```{r}
+SFO_data3%>% mutate(DepartTimePd = recode(DepartTimePd,
+                          `1` = 'Before 11am',
+                          `2` = '11am-5pm',
+                          `3` = 'After 5pm',
+                          '0' = 'NA')) %>% 
+  mutate(Store_Purchase = recode(Store_Purchase,
+                          `1` = 'Yes',
+                          `2` = 'No',
+                          `3` = 'Unsure',
+                          'NA' = 'NA')) %>%
+  filter(DepartTimePd !='',
+  DepartTimePd != 'NA',
+  Store_Purchase !='NA',
+  Store_Purchase !='Unsure') %>% 
+  ggplot(aes(x = Store_Purchase, fill = Store_Purchase)) + ggtitle("Most Store Buys - Time of Day")+
+  geom_bar() +
+  facet_wrap(DepartTimePd~.)
+```
+Similar to the dining_purchase variable, we see a similar trend in store purchases.
+
+```{r}
+SFO_data3%>% mutate(Trip_Purpose = recode(Trip_Purpose,
+                          `1` = 'Business',
+                          `2` = 'Pleasure/Vacation',
+                          `3` = 'Visit Friends/Relatives',
+                          '4' = 'School',
+                          '5' = 'Business',
+                          '6' = 'Wedding/Funeral',
+                          '8' =  'Other')) %>% 
+   mutate(Dining_Purchase = recode(Dining_Purchase,
+                          `1` = 'Yes, I bought food',
+                          `2` = 'No, I did not buy food',
+                          `3` = 'Dont Know',
+                          '0' = 'NA')) %>%
+  filter(Trip_Purpose !='',
+  Dining_Purchase !='',
+  Dining_Purchase != 'NA',
+  Dining_Purchase != 'Dont Know',
+  Dining_Purchase != '0',
+  Gender != '',
+  Gender !='NA') %>% 
+  ggplot(aes(x = Trip_Purpose, fill = Trip_Purpose)) + ggtitle("Dining Purchases by Visitor Type")+
+  geom_bar() +
+  facet_wrap(Dining_Purchase~.)
+```
+
+We see that people travelling on vacation and leisure tend to purchase more than business travellers.
+
+FINAL PROJECT PART 2
+
+1. Customers were asked to rate their opinion of the "SFO Airport as a whole" on a scale from 1 ("unacceptable") to 5 ("outstanding"). The executives want to know if there are patterns across the satisfied or dissatisfied customers based on demographic characteristics, such as sex, age group, and income level.
+
+
+```{r}
+# Creating a subset of the data for performing Factor Analysis
+FA_dat <- SFO_data2 %>%
+            select(AGE, Q19, Q18, Q6N)
+
+# Converting the variables to numeric for simpler analysis
+FA_dat$Q6N <- as.numeric(FA_dat$Q6N)
+FA_dat$AGE <- as.numeric(FA_dat$AGE)
+FA_dat$Q19 <- as.numeric(FA_dat$Q19)
+FA_dat$Q18 <- as.numeric(FA_dat$Q18)
+
+# Creating a parallel plot to identify the optimal number of factors to be used in our model
+psych::fa.parallel(FA_dat)
+```
+
+
+Using the parallel plot above, we see that there are 2 underlying factors to be used in our model. As such, we can proceed with building our model.
+
+
+Income (Q19) and rating of SFO Airport as a whole are not positively correlated 
+```{r}
+cortest.bartlett(FA_dat)
+KMO(FA_dat)
+```
+
+
+```{r}
+# Creating a correlation plot of the variables to visually analyze the relation between the variables
+corrplot::corrplot(cor(FA_dat, use="pairwise.complete.obs"))
+```
+
+
+```{r}
+# Creating a Factor Analysis model
+FA_mod = FA_dat %>%
+  fa(., nfactors = 2, rotate = "promax")
+
+FA_mod
+```
+
+
+```{r}
+# Identifying the correlation between the underlying factors
+FA_mod$score.cor
+```
+
+
+```{r}
+# Visually inspecting the underlying factors amongst the variables
+fa.diagram(FA_mod)
+```
+
+Using the analysis from above, we see that the age and income level of a visitor at SFO airport have a direct effect on the overall experience they have at the airport. 
+
+
+
+2. The executives also want to know if customer satisfaction can be broken down into different attributes of the airport. Knowing this will help the team target specific strengths or areas of improvement. The central feature the customer satisfaction survey is a 14-question portion of the survey asking customers to rate satisfaction with different aspects of the airport (see Question 6 in the data directory). The executives want you to perform a quantitative analysis to determine if there are broad themes that emerge from this part of the survey.
+
+
+```{r}
+FA_dat2 <- SFO_data2 %>%
+            select(Q6A, Q6B, Q6C, Q6D, Q6E, Q6F, Q6G, Q6H, Q6I, Q6J, Q6K, Q6L,Q6M, Q6N)
+
+FA_dat2$Q6A <- as.numeric(FA_dat2$Q6A)
+FA_dat2$Q6B <- as.numeric(FA_dat2$Q6B)
+FA_dat2$Q6C <- as.numeric(FA_dat2$Q6C)
+FA_dat2$Q6D <- as.numeric(FA_dat2$Q6D)
+FA_dat2$Q6E <- as.numeric(FA_dat2$Q6E)
+FA_dat2$Q6F <- as.numeric(FA_dat2$Q6F)
+FA_dat2$Q6G <- as.numeric(FA_dat2$Q6G)
+FA_dat2$Q6H <- as.numeric(FA_dat2$Q6H)
+FA_dat2$Q6I <- as.numeric(FA_dat2$Q6I)
+FA_dat2$Q6J <- as.numeric(FA_dat2$Q6J)
+FA_dat2$Q6K <- as.numeric(FA_dat2$Q6K)
+FA_dat2$Q6L <- as.numeric(FA_dat2$Q6L)
+FA_dat2$Q6M <- as.numeric(FA_dat2$Q6M)
+FA_dat2$Q6N <- as.numeric(FA_dat2$Q6N)
+```
+
+
+```{r}
+# Creating a parallel plot to identify the optimal number of factors to be used in our model
+psych::fa.parallel(FA_dat2)
+```
+
+
+
+```{r}
+# Creating a correlation plot of the variables to visually analyze the relation between the variables
+corrplot::corrplot(cor(FA_dat2, use="pairwise.complete.obs"))
+
+# Creating a Factor Analysis model
+FA_mod2 = FA_dat2 %>%
+  fa(., nfactors = 2, rotate = "promax")
+
+FA_mod2
+```
+
+
+```{r}
+# Visually inspecting the underlying factors amongst the variables
+fa.diagram(FA_mod2)
+
+```
+
+Analyzing the information produced by the factor analysis model, we see that there are 2 broad themes which influence a visitor's overall score of their experience at SFO. The first theme pertains to signage and directions at the airport which helps a visitor navigate the airport easily. This would be especially important for international travelers as they may be visiting from different countries where the primary language isn't English. The second theme pertains to infrastructure and transportation in and around the airport which would make it convienient for people to move around easily within terminals or across terminals.
+
+
+3. Free-response comments, either good or bad, were collected in addition to the 14-item quantitative survey. The executives are not quite sure how to examine it without going through individual surveys one by one, but they want you to see if there are any concepts or insights that arise from these responses. Do the free responses relate to the findings in a) or b) at all?
+
+
+
+```{r}
+SFO_data2$Q7_text_All = iconv(SFO_data2$Q7_text_All, "ISO-8859-1", "UTF-8", sub = "")
+
+SFO_data2$Q7_text_All = gsub("[^[:graph:]]|Ã", " ", SFO_data2$Q7_text_All, perl = TRUE)
+
+```
+
+
+
+```{r}
+documentsCorp = tm::SimpleCorpus(VectorSource(SFO_data2$Q7_text_All))
+
+documentsDTM = DocumentTermMatrix(documentsCorp)
+
+inspect(documentsDTM)
+```
+
+
+```{r}
+#put the data into a tibble:
+tidy_gof <- tibble(RESPNUM = seq_along(SFO_data2$RESPNUM),
+                  text = SFO_data2$RESPNUM)
+#allow filtering
+tidy_gof <- tibble(RESPNUM = seq_along(SFO_data2$RESPNUM),
+                  text = SFO_data2$Q7_text_All)%>%
+                   unnest_tokens(word, text)
+
+# Clean-up unnecessary words
+SFO_data2_Tidy = tidy_gof %>% 
+  select(RESPNUM, word) %>% 
+  ungroup() %>%
+  mutate(word= unlist(.$word), 
+         word = gsub("^c\\(|\\)$?", "", .$word))
+SFO_data2_Tidy
+
+#Apply Stopwords
+SFO_data2_Tidy  %>% 
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+  
+head(SFO_data2_Tidy)
+
+
+
+```
+
+
+
+```{r}
+
+#Wordcloud
+  SFO_data2_Tidy %>% 
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  with(wordcloud(word, n, max.words = 100)) 
+```
+
+
+```{r}
+# the nrc lexicon
+    get_sentiments("nrc")
+
+
+unique(get_sentiments("nrc")$sentiment)
+
+#Tally the sentiments
+  SFO_data2_Tidy %>%
+    inner_join(get_sentiments("nrc")) %>%
+    count(sentiment, sort = TRUE)
+  
+unique(get_sentiments("bing")$sentiment)
+
+#Tally using the "bing" lexicon
+      SFO_data2_Tidy %>%
+      inner_join(get_sentiments("bing")) %>%
+      count(sentiment, sort = TRUE)
+```
+
+
+
+```{r}
+#Wordcloud using the "bing" lexicon
+SFO_data2_Tidy %>%
+        inner_join(get_sentiments("bing")) %>%
+        count(word, sentiment, sort = TRUE) %>%
+        reshape2::acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+        comparison.cloud(colors = c("#F8766D", "#00BFC4"),
+                         max.words = 20)
+
+```
+
+
+
+```{r}
+
+SFO_data2Proc <- textProcessor(SFO_data2$Q7_text_All, metadata = SFO_data2)
+
+```
+
+
+```{r}
+
+out <- prepDocuments(SFO_data2Proc$documents, SFO_data2Proc $vocab, SFO_data2Proc$meta)
+docs <- out$documents
+vocab <- out$vocab
+meta <- out$meta
+```
+
+
+```{r}
+kTest = searchK(documents = out$documents, 
+             vocab = out$vocab, 
+             K = c(20, 40))
+
+plot(kTest)
+```
+
+Topic that vistors most responded to was the signs in the airport. We can infer that signs are confusing to these visitors that responded
+```{r}
+
+topic30 = stm(documents = out$documents, 
+             vocab = out$vocab, 
+             K = 30)
+
+plot(topic30, type="summary", xlim=c(0,.4))
+
+
+plot1 <- plot(topic30, type="labels", topics=c(25,26,24))
+plot1
+
+plot2 <- plot(topic30, type="labels", topics=c(28,14,3))
+plot2
+
+plot3 <- plot(topic30, type="labels", topics=c(7,16,15))
+plot3
+
+
+```
+
+
+```{r}
+
+labelTopics(topic30)
+```
+
+
+The sentiment and topic analysis results support the findings in part a and b. Referring to the word cloud graphic, the word 'confusing' is prominent in words deemed as 'negative' sentiments. Further supporting the confusion that SFO airport visitors face is the word count - 'confusing' appears 393 times on the word count list, good for 2nd place. Additional supporting evidence is found in the words 'signage' and 'hard', appearing 348	and 307 times (3rd and 4th place), respectively.
+
+Grouping these negative sentiment words (i.e., confusing, hard, signage) into common topics allows SFO airport executives to breakdown the inefficiencies in measurable 'chunks'. These 'groupings' also offers the advantage of identifying possible contributing factors. For example, in topic 25, the word 'gate' appears in the same grouping with the words 'confusing' and 'signage'. One can infer that the location of departure/arrival gates are confusing, further exacerbated by confusing signs (directions/instructions). 
+
+Based on these findings, the team believes that considerable thought should be given for relocating some of the signs throughout the airport. A walkthrough following the current signs should be conducted with a sample of people that are unfamiliar with the airport. This may uncover the fact that signs are not strategically placed. In addition, the team also suggests that a thorough review of the content on these signs be conducted (for example, rewording signs with ambiguous or unclear instructions). These suggestions may or may not call for modifying the layouts for certain areas of the airport.
